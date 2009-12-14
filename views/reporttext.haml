@@ -1,0 +1,15 @@
+%h1 Last Week (Iteration #{@iteration -1})
+%h3 Features & Bugs
+#{@lw_table_out}
+
+= if !(@lwc_table_out.nil?) 
+  %h3 Chores
+  #{@lwc_table_out}
+
+%hr
+%h1 This Week (Iteration #{@iteration})
+#{@tw_table_out}
+
+%hr
+%h1 New Stories
+#{@ns_table_out}
