@@ -53,8 +53,8 @@ post '/' do
   tw_data.each{|row| row[0] = "\"#{row[0]}\"\:#{row[4]}"}
   
   #Add note to description if story is already started
-  tw_data.each{|row| if row[5] == "started" 
-      row[1] = "\*started\*<br \\>#{row[1]}"
+  tw_data.each{|row| if row[5] 
+      row[1] = "\*#{row[5]}\*<br \\>#{row[1]}"
     end }
   
   tw_table = Table(:data => tw_data, :column_names => ["Name", "Description", "Type", "Points"])
