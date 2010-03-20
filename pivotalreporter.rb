@@ -3,11 +3,40 @@ require 'rubygems'
 require 'sinatra'
 require 'haml'
 require 'ruport'
+gem 'pivotal-tracker'
 require 'pivotal-tracker'
 require 'activesupport'
 
 get '/' do
   haml :home
+end
+
+post '/projects' do
+  http = Net::HTTP.new('www.pivotaltracker.com', 443)
+  http.use_ssl = true
+  http.start do |http|
+    request = Net::HTTP::Get.new('/services/v3/tokens/active')
+    request.basic_auth params["username"], params["password"]
+    response = http.request(request)
+    hash = Hash.from_xml(response.body)
+    @token = hash['token']['guid']
+  end
+  http.start do |http|
+    request = Net::HTTP::Get.new('/services/v3/projects')
+    request.add_field("X-TrackerToken",@token)
+    response = http.request(request)
+    hash = Hash.from_xml(response.body)
+    projects = hash['projects']
+    @projectnames = Array.new
+    @projectids = Array.new
+    projects.each{|p| @projectnames << p['name']}
+    projects.each{|p| @projectids << p['id']}
+  end
+  haml :projects
+end
+
+post '/iterations' do
+  #We have the Tracker project ID and API token, now we should allow the user to select the iteration that they want
 end
 
 post '/' do
@@ -103,17 +132,26 @@ end
     
 __END__
 @@ home
-%form{:method => "post"}
-  %p 
-    Project
-    %input{:type => "text", :name => "project"}
+%form{:method => "post", :action => "/projects"}
   %p
-    API Key
-    %input{:type => "text", :name => "apikey"}
+    Username
+    %input{:type => "text", :name => "username"}
   %p
-    Iteration
-    %input{:type => "text", :name => "iteration"}
+    Password
+    %input{:type => "password", :name => "password"}
   %p
     %input{:type => "submit", :value => "submit"}
-  
+
+@@ projects
+%form{:method => "post", :action => "/iterations"}
+  %p
+    Projects
+    %select{:name => "project"}
+      = @projectnames.each_index do |p|
+        %option{:value => "#{@projectids[p]}"} #{@projectnames[p]}
+    %input{:type => "hidden", :name => "token", :value => "#{@token}"}
+
+  %p
+    %input{:type => "submit", :value => "submit"}
+
   
