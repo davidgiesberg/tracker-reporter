@@ -5,38 +5,81 @@ require 'haml'
 require 'ruport'
 gem 'pivotal-tracker'
 require 'pivotal-tracker'
-require 'activesupport'
+gem 'activesupport', '2.3.5'
 
 get '/' do
   haml :home
 end
 
 post '/projects' do
-  http = Net::HTTP.new('www.pivotaltracker.com', 443)
-  http.use_ssl = true
-  http.start do |http|
-    request = Net::HTTP::Get.new('/services/v3/tokens/active')
-    request.basic_auth params["username"], params["password"]
-    response = http.request(request)
-    hash = Hash.from_xml(response.body)
-    @token = hash['token']['guid']
-  end
-  http.start do |http|
-    request = Net::HTTP::Get.new('/services/v3/projects')
-    request.add_field("X-TrackerToken",@token)
-    response = http.request(request)
-    hash = Hash.from_xml(response.body)
-    projects = hash['projects']
-    @projectnames = Array.new
-    @projectids = Array.new
-    projects.each{|p| @projectnames << p['name']}
-    projects.each{|p| @projectids << p['id']}
-  end
+  @token = PivotalTracker::Client.token(params["username"], params["password"])
+  PivotalTracker::Client.use_ssl
+  @projects = PivotalTracker::Project.all
   haml :projects
 end
 
 post '/iterations' do
-  #We have the Tracker project ID and API token, now we should allow the user to select the iteration that they want
+  @project = params["project"].to_i
+  @token = PivotalTracker::Client.token = params["token"]
+  PivotalTracker::Client.use_ssl = true
+  @proj = PivotalTracker::Project.find(@project)
+  @iterations = @proj.iterations.all
+  haml :iterations
+end
+
+post '/report' do
+  project = params["project"].to_i
+  PivotalTracker::Client.token = params["token"]
+  PivotalTracker::Client.use_ssl = true
+  @proj = PivotalTracker::Project.find(project)
+  iteration = params["iteration"].to_i
+  @itr = @proj.iterations.find(iteration)
+  
+  #ALL
+  all_data = @itr.stories.select {|story| %w(feature bug chore).include?(story.story_type) }.collect do |story|
+    [story.name, story.description, story.story_type, story.estimate, story.url]
+  end
+  
+  all_data.each{|row| row[0] = "\"#{row[0]}\"\:#{row[4]}"}
+  
+  all_table = Table(:data => all_data, :column_names => ["Name", "Description", "Type", "Points"])
+  
+  @all_table_out = clean(all_table.to_html)
+  
+  #Features
+  feat_data = @itr.stories.select {|story| %w(feature).include?(story.story_type) }.collect do |story|
+    [story.name, story.description, story.story_type, story.estimate, story.url]
+  end
+  
+  feat_data.each{|row| row[0] = "\"#{row[0]}\"\:#{row[4]}"}
+  
+  feat_table = Table(:data => feat_data, :column_names => ["Name", "Description", "Type", "Points"])
+  
+  @feat_table_out = clean(feat_table.to_html)
+  
+  #Chores
+  chore_data = @itr.stories.select {|story| %w(chore).include?(story.story_type) }.collect do |story|
+    [story.name, story.description, story.story_type, story.estimate, story.url]
+  end
+  
+  chore_data.each{|row| row[0] = "\"#{row[0]}\"\:#{row[4]}"}
+  
+  chore_table = Table(:data => chore_data, :column_names => ["Name", "Description", "Type", "Points"])
+  
+  @chore_table_out = clean(chore_table.to_html)
+  
+  #Bugs
+  bug_data = @itr.stories.select {|story| %w(bug).include?(story.story_type) }.collect do |story|
+    [story.name, story.description, story.story_type, story.estimate, story.url]
+  end
+  
+  bug_data.each{|row| row[0] = "\"#{row[0]}\"\:#{row[4]}"}
+  
+  bug_table = Table(:data => bug_data, :column_names => ["Name", "Description", "Type", "Points"])
+  
+  @bug_table_out = clean(bug_table.to_html)
+  
+  haml :report
 end
 
 post '/' do
@@ -147,11 +190,23 @@ __END__
   %p
     Projects
     %select{:name => "project"}
-      = @projectnames.each_index do |p|
-        %option{:value => "#{@projectids[p]}"} #{@projectnames[p]}
+      = @projects.each do |p|
+        %option{:value => "#{p.id}"} #{p.name}
     %input{:type => "hidden", :name => "token", :value => "#{@token}"}
 
   %p
     %input{:type => "submit", :value => "submit"}
 
-  
+@@ iterations
+%form{:method => "post", :action => "/report"}
+  %p 
+    Iterations
+    %select{:name => "iteration"}
+      = @iterations.each do |i|
+        %option{:value => "#{i.number}"} #{i.number} - #{i.finish.strftime("%m/%d/%Y")} 
+    %input{:type => "hidden", :name => "project", :value=> "#{@project}"}
+    %input{:type => "hidden", :name => "token", :value => "#{@token}"}
+
+  %p
+    %input{:type => "submit", :value => "submit"}
+       
