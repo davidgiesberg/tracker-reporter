@@ -1,2 +1,2 @@
-require 'pivotalreporter'
+require 'tracker-reporter'
 run Sinatra::Application

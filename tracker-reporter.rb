@@ -1,4 +1,4 @@
-#pivotalreporter.rb
+#tracker-reporter.rb
 require 'rubygems'
 require 'sinatra'
 require 'haml'
