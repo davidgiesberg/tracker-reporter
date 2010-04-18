@@ -13,6 +13,7 @@ end
 
 post '/projects' do
   @token = PivotalTracker::Client.token(params["username"], params["password"])
+  response.set_cookie("token", @token)
   PivotalTracker::Client.use_ssl
   @projects = PivotalTracker::Project.all
   haml :projects
@@ -20,7 +21,7 @@ end
 
 post '/iterations' do
   @project = params["project"].to_i
-  @token = PivotalTracker::Client.token = params["token"]
+  PivotalTracker::Client.token = request.cookies["token"]
   PivotalTracker::Client.use_ssl = true
   @proj = PivotalTracker::Project.find(@project)
   @iterations = @proj.iterations.all
@@ -29,7 +30,7 @@ end
 
 post '/report' do
   project = params["project"].to_i
-  PivotalTracker::Client.token = params["token"]
+  PivotalTracker::Client.token = request.cookies["token"]
   PivotalTracker::Client.use_ssl = true
   @proj = PivotalTracker::Project.find(project)
   iteration = params["iteration"].to_i
@@ -127,7 +128,6 @@ __END__
     %select{:name => "project"}
       = @projects.each do |p|
         %option{:value => "#{p.id}"} #{p.name}
-    %input{:type => "hidden", :name => "token", :value => "#{@token}"}
 
   %p
     %input{:type => "submit", :value => "submit"}
@@ -140,7 +140,6 @@ __END__
       = @iterations.each do |i|
         %option{:value => "#{i.number}"} #{i.number} - #{i.finish.strftime("%m/%d/%Y")} 
     %input{:type => "hidden", :name => "project", :value=> "#{@project}"}
-    %input{:type => "hidden", :name => "token", :value => "#{@token}"}
 
   %p
     %input{:type => "submit", :value => "submit"}
