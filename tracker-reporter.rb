@@ -7,33 +7,70 @@ gem 'pivotal-tracker'
 require 'pivotal-tracker'
 gem 'activesupport', '2.3.5'
 
+before do
+  if request.cookies["token"].nil? && request.path_info != '/' && request.path_info != '/login'
+    redirect '/'
+  end
+end
+
 get '/' do
   haml :home
 end
 
-post '/projects' do
+get '/login' do
+  haml :login
+end
+
+post '/login' do
   @token = PivotalTracker::Client.token(params["username"], params["password"])
+  response.set_cookie("username", params["username"])
   response.set_cookie("token", @token)
+  redirect '/projects'
+end
+
+get '/logout' do
+  response.delete_cookie("username")
+  response.delete_cookie("token")
+  redirect '/'
+end
+
+get '/projects' do
+  @token = PivotalTracker::Client.token = request.cookies["token"]
   PivotalTracker::Client.use_ssl
   @projects = PivotalTracker::Project.all
   haml :projects
 end
 
-post '/iterations' do
-  @project = params["project"].to_i
+post '/projects' do
+  @project = params["project"]
+  projectURL = '/projects/'<< @project << '/iterations'
+  redirect projectURL
+end
+
+get '/projects/:project_id/iterations' do
   PivotalTracker::Client.token = request.cookies["token"]
   PivotalTracker::Client.use_ssl = true
+  @project = params["project_id"].to_i
   @proj = PivotalTracker::Project.find(@project)
   @iterations = @proj.iterations.all
+  @postUrl = request.path_info
   haml :iterations
 end
 
-post '/report' do
-  project = params["project"].to_i
+post '/projects/:project_id/iterations' do
+  reportURL = '/projects/' << params["project_id"] << '/iterations/' << params["iteration"] << '/report'
+  redirect reportURL
+end
+
+get '/projects/:project_id/iterations/:iteration/report' do
+  
+  project = params["project_id"].to_i
+  iteration = params["iteration"].to_i
+  
   PivotalTracker::Client.token = request.cookies["token"]
   PivotalTracker::Client.use_ssl = true
+  
   @proj = PivotalTracker::Project.find(project)
-  iteration = params["iteration"].to_i
   @itr = @proj.iterations.find(iteration)
   
   #ALL
@@ -104,6 +141,10 @@ helpers do
     output = output.gsub(/<td>0<\/td>/,"<td>n/a</td>")
   end
   
+  def loggedin?
+    !request.cookies["token"].nil? 
+  end
+  
   def partial(page, options={})
     haml page, options.merge!(:layout => false)
   end
@@ -111,7 +152,13 @@ end
     
 __END__
 @@ home
-%form{:method => "post", :action => "/projects"}
+%h1 Tracker Reporter
+%p
+  Tracker Reporter is used to generate HTML reports from 
+  %a{:href=>"http://www.pivotaltracker.com"}Pivotal Tracker
+
+@@ login
+%form{:method => "post", :action => "/login"}
   %p
     Username
     %input{:type => "text", :name => "username"}
@@ -122,7 +169,7 @@ __END__
     %input{:type => "submit", :value => "submit"}
 
 @@ projects
-%form{:method => "post", :action => "/iterations"}
+%form{:method => "post", :action => "/projects"}
   %p
     Projects
     %select{:name => "project"}
@@ -133,13 +180,12 @@ __END__
     %input{:type => "submit", :value => "submit"}
 
 @@ iterations
-%form{:method => "post", :action => "/report"}
+%form{:method => "post", :action => "#{@postUrl}"}
   %p 
     Iterations
     %select{:name => "iteration"}
       = @iterations.each do |i|
         %option{:value => "#{i.number}"} #{i.number} - #{i.finish.strftime("%m/%d/%Y")} 
-    %input{:type => "hidden", :name => "project", :value=> "#{@project}"}
 
   %p
     %input{:type => "submit", :value => "submit"}
