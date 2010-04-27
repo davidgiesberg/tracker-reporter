@@ -7,6 +7,8 @@ gem 'pivotal-tracker'
 require 'pivotal-tracker'
 gem 'activesupport', '2.3.5'
 
+enable :inline_templates
+
 before do
   if request.cookies["token"].nil? && request.path_info != '/' && request.path_info != '/login'
     redirect '/'
