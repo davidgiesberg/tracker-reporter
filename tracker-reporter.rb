@@ -75,6 +75,7 @@ get '/projects/:project_id/iterations/:iteration/report' do
   @proj = PivotalTracker::Project.find(project)
   @itr = @proj.iterations.find(iteration)
   
+=begin
   #ALL
   all_data = @itr.stories.select {|story| %w(feature bug chore).include?(story.story_type) }.collect do |story|
     [story.name, story.description, story.story_type, story.estimate, story.url]
@@ -85,37 +86,40 @@ get '/projects/:project_id/iterations/:iteration/report' do
   all_table = Table(:data => all_data, :column_names => ["Name", "Description", "Type", "Points"])
   
   @all_table_out = clean(all_table.to_html)
+=end
   
   #Features
   feat_data = @itr.stories.select {|story| %w(feature).include?(story.story_type) }.collect do |story|
-    [story.name, story.description, story.story_type, story.estimate, story.url]
+    [story.name, story.description, story.estimate, story.url]
   end
   
-  feat_data.each{|row| row[0] = "\"#{row[0]}\"\:#{row[4]}"}
+  feat_data.each{|row| row[0] = "\"#{row[0]}\"\:#{row[3]}"}
   
-  feat_table = Table(:data => feat_data, :column_names => ["Name", "Description", "Type", "Points"])
+  feat_table = Table(:data => feat_data, :column_names => ["Name", "Description", "Points"])
+  
+  feat_table.sort_rows_by!("Points", :order => :descending )
   
   @feat_table_out = clean(feat_table.to_html)
   
   #Chores
   chore_data = @itr.stories.select {|story| %w(chore).include?(story.story_type) }.collect do |story|
-    [story.name, story.description, story.story_type, story.estimate, story.url]
+    [story.name, story.description, story.url]
   end
   
-  chore_data.each{|row| row[0] = "\"#{row[0]}\"\:#{row[4]}"}
+  chore_data.each{|row| row[0] = "\"#{row[0]}\"\:#{row[2]}"}
   
-  chore_table = Table(:data => chore_data, :column_names => ["Name", "Description", "Type", "Points"])
+  chore_table = Table(:data => chore_data, :column_names => ["Name", "Description"])
   
   @chore_table_out = clean(chore_table.to_html)
   
   #Bugs
   bug_data = @itr.stories.select {|story| %w(bug).include?(story.story_type) }.collect do |story|
-    [story.name, story.description, story.story_type, story.estimate, story.url]
+    [story.name, story.description, story.url]
   end
   
-  bug_data.each{|row| row[0] = "\"#{row[0]}\"\:#{row[4]}"}
+  bug_data.each{|row| row[0] = "\"#{row[0]}\"\:#{row[2]}"}
   
-  bug_table = Table(:data => bug_data, :column_names => ["Name", "Description", "Type", "Points"])
+  bug_table = Table(:data => bug_data, :column_names => ["Name", "Description"])
   
   @bug_table_out = clean(bug_table.to_html)
   
@@ -124,6 +128,7 @@ end
 
 helpers do
   def clean(output)
+=begin    
     output = output.gsub(/<p>accepted<\/p>/,"<h3>Accepted</h3>")
     output = output.gsub(/<p>delivered<\/p>/,"<h3>Under Review</h3>")
     output = output.gsub(/<p>started<\/p>/,"<h3>In Progress</h3>")
@@ -138,7 +143,7 @@ helpers do
     output = output.gsub(/<td>chore<\/td>/,"<td><img src=\"http://pivotaltracker.com/images/v3/icons/stories_view/chore_icon.png\" alt=\"feature\"><\/img>")
     output = output.gsub(/<td>bug<\/td>/,"<td><img src=\"http://pivotaltracker.com/images/v3/icons/stories_view/bug_icon.png\" alt=\"feature\"><\/img>")
     output = output.gsub(/<td>release<\/td>/,"<td><img src=\"http://pivotaltracker.com/images/v3/icons/stories_view/release_icon.png\" alt=\"feature\"><\/img>")
-    
+=end    
     output = output.gsub(/<td>-1<\/td>/,"<td>??</td>")
     output = output.gsub(/<td>0<\/td>/,"<td>n/a</td>")
   end
