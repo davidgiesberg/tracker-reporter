@@ -38,7 +38,7 @@ end
 
 get '/projects' do
   @token = PivotalTracker::Client.token = request.cookies["token"]
-  PivotalTracker::Client.use_ssl
+  PivotalTracker::Client.use_ssl = true
   @projects = PivotalTracker::Project.all
   haml :projects
 end
