@@ -56,12 +56,66 @@ get '/projects/:project_id/iterations' do
   @proj = PivotalTracker::Project.find(@project)
   @iterations = @proj.iterations.all
   @postUrl = request.path_info
+  
+  #Project Report
+  @projectReportUrl = '/projects/' << params["project_id"] << '/report'
+  
   haml :iterations
 end
 
 post '/projects/:project_id/iterations' do
   reportURL = '/projects/' << params["project_id"] << '/iterations/' << params["iteration"] << '/report'
   redirect reportURL
+end
+
+get '/projects/:project_id/report' do
+  project = params["project_id"].to_i
+
+  PivotalTracker::Client.token = request.cookies["token"]
+  PivotalTracker::Client.use_ssl = true
+
+  @proj = PivotalTracker::Project.find(project)
+  
+  #Get last 10 done iterations
+
+#  Pivotal Tracker gem needs to be updated  
+#  completedIterations = @proj.iterations.done(:offset => '-10')
+
+  #find the current iteration
+  currentIterationID = 0
+  
+  @proj.iterations.all.each do |itr|
+    if itr.finish > DateTime.now && itr.start < DateTime.now
+      currentIterationID = itr.id
+      break
+    end
+  end
+
+  estimateCounts = Hash.new
+  estimateCountsTable = Table(:column_names => %w[iteration features chores bugs])
+  
+  
+  @proj.iterations.all.each do |itr|
+    if ((itr.id >= (currentIterationID - 10)) && (itr.id < (currentIterationID)))
+      features = chores = bugs = 0
+      itr.stories.each do |story|
+        if story.story_type == "feature"
+          features += story.estimate
+        elsif story.story_type == "chore"
+          chores += story.estimate
+        elsif story.story_type == "bug"
+          bugs += story.estimate
+        end
+      end
+      estimateCountsTable << [itr.id, features, chores, bugs]
+    end
+  end
+  
+  estimateCountsTable.sort_rows_by!(["iteration"])
+  
+  @estimateCountsTableOut = estimateCountsTable.to_html
+  
+  haml :projectReport
 end
 
 get '/projects/:project_id/iterations/:iteration/report' do
@@ -187,6 +241,8 @@ __END__
     %input{:type => "submit", :value => "submit"}
 
 @@ iterations
+%p
+  %a{:href => "#{@projectReportUrl}"}Project Report
 %form{:method => "post", :action => "#{@postUrl}"}
   %p 
     Iterations
@@ -197,3 +253,5 @@ __END__
   %p
     %input{:type => "submit", :value => "submit"}
        
+@@ projectReport
+#{@estimateCountsTableOut}
