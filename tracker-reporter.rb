@@ -6,6 +6,7 @@ require 'ruport'
 gem 'pivotal-tracker'
 require 'pivotal-tracker'
 gem 'activesupport', '2.3.5'
+require 'google_chart' 
 
 enable :inline_templates
 
@@ -92,11 +93,11 @@ get '/projects/:project_id/report' do
   end
 
   estimateCounts = Hash.new
-  estimateCountsTable = Table(:column_names => %w[iteration features chores bugs])
+  estimateCountsTable = Table(:column_names => %w[Iteration Features Chores Bugs])
   
   
   @proj.iterations.all.each do |itr|
-    if ((itr.id >= (currentIterationID - 10)) && (itr.id < (currentIterationID)))
+    if ((itr.id >= (currentIterationID - 20)) && (itr.id < (currentIterationID)))
       features = chores = bugs = 0
       itr.stories.each do |story|
         if story.story_type == "feature"
@@ -114,6 +115,17 @@ get '/projects/:project_id/report' do
   estimateCountsTable.sort_rows_by!(["iteration"])
   
   @estimateCountsTableOut = estimateCountsTable.to_html
+  
+  bc = GoogleChart::BarChart.new('400x200', "", :vertical, true )
+  bc.data "Features", estimateCountsTable.column("Features"), 'FFFF80'
+  bc.data "Bugs", estimateCountsTable.column("Bugs"), '660000'
+  bc.data "Chores", estimateCountsTable.column("Chores"), '666666'
+  bc.axis :x, :labels => estimateCountsTable.column("Iteration")
+  bc.width_spacing_options(:bar_width => 10)
+  bc.fill :background, :gradient, :angle => 45,  :color => [['eeeeee',1],['ffffff',0]]
+  
+  
+  @chartURL = bc.to_url
   
   haml :projectReport
 end
@@ -254,4 +266,5 @@ __END__
     %input{:type => "submit", :value => "submit"}
        
 @@ projectReport
+%img{:src => "#{@chartURL}"}
 #{@estimateCountsTableOut}
