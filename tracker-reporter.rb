@@ -50,6 +50,26 @@ post '/projects' do
   redirect projectURL
 end
 
+get '/projects/:project_id' do
+  @token = PivotalTracker::Client.token = request.cookies["token"]
+  PivotalTracker::Client.use_ssl = true
+  @project = params["project"]
+  
+  #Project Report
+  @projectReportUrl = '/projects/' << params["project_id"] << '/report'
+  
+  #Iteration Report
+  @iterationReportUrl = '/projects/' << params["project_id"] << '/iterations'
+  
+  #Labels Report
+  @labelsReportUrl = '/projects/' << params["project_id"] << '/labels'
+  
+  #Release Report
+  @releaseReportUrl = '/projects/' << params["project_id"] << '/releases'
+  
+  haml :project
+end
+
 get '/projects/:project_id/iterations' do
   PivotalTracker::Client.token = request.cookies["token"]
   PivotalTracker::Client.use_ssl = true
@@ -57,9 +77,6 @@ get '/projects/:project_id/iterations' do
   @proj = PivotalTracker::Project.find(@project)
   @iterations = @proj.iterations.all
   @postUrl = request.path_info
-  
-  #Project Report
-  @projectReportUrl = '/projects/' << params["project_id"] << '/report'
   
   haml :iterations
 end
@@ -130,6 +147,23 @@ get '/projects/:project_id/report' do
   haml :projectReport
 end
 
+get '/projects/:project_id/labels' do
+  PivotalTracker::Client.token = request.cookies["token"]
+  PivotalTracker::Client.use_ssl = true
+  @project = params["project_id"].to_i
+  @proj = PivotalTracker::Project.find(@project)
+  @proj.stories.all
+  @labels = @proj.stories.all(:lab)
+  @postUrl = request.path_info
+  
+  haml :iterations
+end
+
+post '/projects/:project_id/labels' do
+  reportURL = '/projects/' << params["project_id"] << '/iterations/' << params["iteration"] << '/report'
+  redirect reportURL
+end
+
 get '/projects/:project_id/iterations/:iteration/report' do
   
   project = params["project_id"].to_i
@@ -159,7 +193,7 @@ get '/projects/:project_id/iterations/:iteration/report' do
     [story.name, story.description, story.estimate, story.url]
   end
   
-  feat_data.each{|row| row[0] = "\"#{row[0]}\"\:#{row[3]}"}
+  feat_data.each{|row| row[0] = "<a href=\"#{row[3]}\">#{row[0]}</a>"}
   
   feat_table = Table(:data => feat_data, :column_names => ["Name", "Description", "Points"])
   
@@ -172,7 +206,7 @@ get '/projects/:project_id/iterations/:iteration/report' do
     [story.name, story.description, story.url]
   end
   
-  chore_data.each{|row| row[0] = "\"#{row[0]}\"\:#{row[2]}"}
+  chore_data.each{|row| row[0] = "<a href=\"#{row[2]}\">#{row[0]}</a>"}
   
   chore_table = Table(:data => chore_data, :column_names => ["Name", "Description"])
   
@@ -183,7 +217,7 @@ get '/projects/:project_id/iterations/:iteration/report' do
     [story.name, story.description, story.url]
   end
   
-  bug_data.each{|row| row[0] = "\"#{row[0]}\"\:#{row[2]}"}
+  bug_data.each{|row| row[0] = "<a href=\"#{row[2]}\">#{row[0]}</a>"}
   
   bug_table = Table(:data => bug_data, :column_names => ["Name", "Description"])
   
@@ -251,10 +285,22 @@ __END__
 
   %p
     %input{:type => "submit", :value => "submit"}
+    
+@@ project
+%h2 What would you like to do?
+%ul
+  %li 
+    View the 
+    %a{:href => "#{@projectReportUrl}"}Project Report
+  %li 
+    Generate an 
+    %a{:href => "#{@iterationReportUrl}"}Iteration Report
+  %li 
+    Generate a 
+    %a{:href => "#{@tagReportUrl}"}Tag Report
 
 @@ iterations
 %p
-  %a{:href => "#{@projectReportUrl}"}Project Report
 %form{:method => "post", :action => "#{@postUrl}"}
   %p 
     Iterations
